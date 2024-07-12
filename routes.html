@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smarttrafa - Route Planner</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://kit.fontawesome.com/your-fontawesome-kit.js" crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="logo"><a href="index.html">Smarttraf</a></div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="map.html">Map</a></li>
+                <li><a href="route.html">Routes</a></li>
+                <li><a href="alerts.html">Alerts</a></li>
+                <li><a href="profile.html">Profile</a></li>
+            </ul>
+            <div class="burger">
+                <div class="line1"></div>
+                <div class="line2"></div>
+                <div class="line3"></div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="route-planner">
+            <h1>Plan Your Route</h1>
+            <form id="route-form">
+                <div class="input-group">
+                    <label for="start">Start:</label>
+                    <input type="text" id="start" name="start" required>
+                    <button type="button" id="use-current-location">Use Current Location</button>
+                </div>
+                <div class="input-group">
+                    <label for="end">Destination:</label>
+                    <input type="text" id="end" name="end" required>
+                </div>
+                <div id="waypoints">
+                    <!-- Waypoints will be dynamically added here -->
+                </div>
+                <button type="button" id="add-waypoint">Add Stop</button>
+                <div class="preferences">
+                    <h2>Preferences</h2>
+                    <label><input type="checkbox" name="avoid_tolls"> Avoid Tolls</label>
+                    <label><input type="checkbox" name="avoid_highways"> Avoid Highways</label>
+                    <label><input type="checkbox" name="avoid_ferries"> Avoid Ferries</label>
+                </div>
+                <button type="submit">Plan Route</button>
+            </form>
+        </section>
+
+        <section class="route-display">
+            <div id="map"></div>
+            <div id="directions-panel"></div>
+        </section>
+
+        <section class="trip-planner">
+            <h2>Plan a Trip</h2>
+            <form id="trip-form">
+                <div class="input-group">
+                    <label for="trip-start">Start City:</label>
+                    <input type="text" id="trip-start" name="trip-start" required>
+                </div>
+                <div class="input-group">
+                    <label for="trip-end">End City:</label>
+                    <input type="text" id="trip-end" name="trip-end" required>
+                </div>
+                <div class="input-group">
+                    <label for="trip-date">Date of Trip:</label>
+                    <input type="date" id="trip-date" name="trip-date" required>
+                </div>
+                <button type="submit">Plan Trip</button>
+            </form>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>About TrafficNav Kenya</h3>
+                <p>Smart navigation for Kenyan drivers</p>
+            </div>
+            <div class="footer-section">
+                <h3>Quick Links</h3>
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="map.html">Map</a></li>
+                    <li><a href="route-input.html">Routes</a></li>
+                    <li><a href="alerts.html">Alerts</a></li>
+                    <li><a href="profile.html">Profile</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Contact Us</h3>
+                <p>Email: info@trafficnavkenya.com</p>
+                <p>Phone: +254 123 456 789</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            &copy; 2024 TrafficNav Kenya. All rights reserved.
+        </div>
+    </footer>
+
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places"></script>
+    <script>
+        let map;
+        let directionsService;
+        let directionsRenderer;
+        let placesService;
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: -1.2921, lng: 36.8219 }, // Nairobi coordinates
+                zoom: 8
+            });
+
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer();
+            directionsRenderer.setMap(map);
+            directionsRenderer.setPanel(document.getElementById('directions-panel'));
+
+            placesService = new google.maps.places.PlacesService(map);
+
+            const startInput = document.getElementById('start');
+            const endInput = document.getElementById('end');
+            const startAutocomplete = new google.maps.places.Autocomplete(startInput);
+            const endAutocomplete = new google.maps.places.Autocomplete(endInput);
+
+            document.getElementById('use-current-location').addEventListener('click', useCurrentLocation);
+            document.getElementById('add-waypoint').addEventListener('click', addWaypoint);
+            document.getElementById('route-form').addEventListener('submit', calculateRoute);
+            document.getElementById('trip-form').addEventListener('submit', planTrip);
+        }
+
+        function useCurrentLocation() {
+            if (navigator.geolocation) {
+                // Show loading indicator
+                document.getElementById('start').value = 'Locating...';
+                document.getElementById('use-current-location').disabled = true;
+
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const pos = {
+                            lat: position.coords.latitude,
+                            lng: position.coords.longitude
+                        };
+
+                        // Use reverse geocoding to get a human-readable address
+                        const geocoder = new google.maps.Geocoder();
+                        geocoder.geocode({ location: pos }, (results, status) => {
+                            if (status === 'OK' && results[0]) {
+                                document.getElementById('start').value = results[0].formatted_address;
+                            } else {
+                                document.getElementById('start').value = `${pos.lat.toFixed(6)}, ${pos.lng.toFixed(6)}`;
+                            }
+                            document.getElementById('use-current-location').disabled = false;
+                        });
+                    },
+                    (error) => {
+                        let errorMessage;
+                        switch (error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMessage = "Location access denied. Please enable location services.";
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMessage = "Location information unavailable. Please try again.";
+                                break;
+                            case error.TIMEOUT:
+                                errorMessage = "Location request timed out. Please try again.";
+                                break;
+                            default:
+                                errorMessage = "An unknown error occurred. Please try again.";
+                        }
+                        document.getElementById('start').value = '';
+                        document.getElementById('use-current-location').disabled = false;
+                        alert(errorMessage);
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            } else {
+                alert('Error: Your browser doesn\'t support geolocation.');
+            }
+        }
+
+        function addWaypoint() {
+            const waypoints = document.getElementById('waypoints');
+            const waypointIndex = waypoints.children.length;
+            const waypointDiv = document.createElement('div');
+            waypointDiv.innerHTML = `
+        <div class="input-group">
+            <label for="waypoint-${waypointIndex}">Stop ${waypointIndex + 1}:</label>
+            <input type="text" id="waypoint-${waypointIndex}" name="waypoint-${waypointIndex}" required>
+            <button type="button" class="remove-waypoint">Remove</button>
+        </div>
+    `;
+            waypoints.appendChild(waypointDiv);
+
+            const removeButton = waypointDiv.querySelector('.remove-waypoint');
+            removeButton.addEventListener('click', () => {
+                waypoints.removeChild(waypointDiv);
+            });
+
+            const waypointInput = waypointDiv.querySelector(`#waypoint-${waypointIndex}`);
+            new google.maps.places.Autocomplete(waypointInput);
+        }
+
+        function calculateRoute(event) {
+            event.preventDefault();
+
+            const start = document.getElementById('start').value;
+            const end = document.getElementById('end').value;
+            const waypointInputs = document.querySelectorAll('#waypoints input');
+            const waypoints = Array.from(waypointInputs).map(input => ({
+                location: input.value,
+                stopover: true
+            }));
+
+            const avoidTolls = document.querySelector('input[name="avoid_tolls"]').checked;
+            const avoidHighways = document.querySelector('input[name="avoid_highways"]').checked;
+            const avoidFerries = document.querySelector('input[name="avoid_ferries"]').checked;
+
+            const request = {
+                origin: start,
+                destination: end,
+                waypoints: waypoints,
+                optimizeWaypoints: true,
+                travelMode: 'DRIVING',
+                avoidTolls: avoidTolls,
+                avoidHighways: avoidHighways,
+                avoidFerries: avoidFerries
+            };
+
+            directionsService.route(request, (result, status) => {
+                if (status === 'OK') {
+                    directionsRenderer.setDirections(result);
+                    checkForRoadEvents(result.routes[0]);
+                } else {
+                    alert('Directions request failed due to ' + status);
+                }
+            });
+        }
+
+        function checkForRoadEvents(route) {
+            // This is a placeholder function. In a real application, you would
+            // need to integrate with a traffic incidents API or service.
+            const simulatedEvents = [
+                { type: 'CONSTRUCTION', location: { lat: -1.2855, lng: 36.8226 } },
+                { type: 'ACCIDENT', location: { lat: -1.2890, lng: 36.8194 } }
+            ];
+
+            simulatedEvents.forEach(event => {
+                const eventLocation = new google.maps.LatLng(event.location.lat, event.location.lng);
+                let isOnRoute = false;
+
+                for (let i = 0; i < route.legs.length; i++) {
+                    if (google.maps.geometry.poly.isLocationOnEdge(eventLocation, new google.maps.Polyline({
+                        path: route.legs[i].steps.flatMap(step => step.path)
+                    }), 1e-3)) {
+                        isOnRoute = true;
+                        break;
+                    }
+                }
+
+                if (isOnRoute) {
+                    const confirmation = confirm(`There is a ${event.type} on your route. Would you like to find an alternative route?`);
+                    if (confirmation) {
+                        // Recalculate route avoiding this area
+                        // This would require additional logic to adjust the route request
+                    }
+                }
+            });
+        }
+
+        function planTrip(event) {
+            event.preventDefault();
+
+            const startCity = document.getElementById('trip-start').value;
+            const endCity = document.getElementById('trip-end').value;
+            const tripDate = document.getElementById('trip-date').value;
+
+            // This is a placeholder function. In a real application, you would
+            // need to implement trip planning logic, possibly involving multiple API calls.
+            alert(`Planning a trip from ${startCity} to ${endCity} on ${tripDate}. This feature is coming soon!`);
+        }
+
+        // Initialize the map when the page loads
+        google.maps.event.addDomListener(window, 'load', initMap);
+    </script>
+</body>
+
+</html>

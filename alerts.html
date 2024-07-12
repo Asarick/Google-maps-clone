@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smarttraf - Alerts & Saved Routes</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://kit.fontawesome.com/your-fontawesome-kit.js" crossorigin="anonymous"></script>
+</head>
+
+<body>
+    <header>
+        <nav class="navbar">
+            <div class="logo"><a href="index.html">Smarttraf</a></div>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="map.html">Map</a></li>
+                <li><a href="route.html">Routes</a></li>
+                <li><a href="alerts.html">Alerts</a></li>
+                <li><a href="profile.html">Profile</a></li>
+            </ul>
+            <div class="burger">
+                <div class="line1"></div>
+                <div class="line2"></div>
+                <div class="line3"></div>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="alerts">
+            <h1>Traffic Alerts</h1>
+            <div class="filter-options">
+                <h2>Filter Alerts</h2>
+                <form id="alert-filter">
+                    <label>
+                        <input type="checkbox" name="severity" value="high"> High Severity
+                    </label>
+                    <label>
+                        <input type="checkbox" name="severity" value="medium"> Medium Severity
+                    </label>
+                    <label>
+                        <input type="checkbox" name="severity" value="low"> Low Severity
+                    </label>
+                    <label>
+                        Location:
+                        <input type="text" name="location" placeholder="Enter location">
+                    </label>
+                    <button type="submit">Apply Filters</button>
+                </form>
+            </div>
+            <div id="alert-list">
+                <!-- Alerts will be dynamically added here -->
+            </div>
+            <div class="custom-alert">
+                <h2>Set Up Custom Alert</h2>
+                <form id="custom-alert-form">
+                    <label>
+                        Location:
+                        <input type="text" name="custom-location" required>
+                    </label>
+                    <label>
+                        Radius (km):
+                        <input type="number" name="radius" min="1" max="50" required>
+                    </label>
+                    <label>
+                        Alert Type:
+                        <select name="alert-type" required>
+                            <option value="accident">Accident</option>
+                            <option value="construction">Construction</option>
+                            <option value="heavy-traffic">Heavy Traffic</option>
+                        </select>
+                    </label>
+                    <button type="submit">Set Alert</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="saved-routes">
+            <h1>Saved Routes</h1>
+            <div id="saved-routes-list">
+                <!-- Saved routes will be dynamically added here -->
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>About TrafficNav Kenya</h3>
+                <p>Smart navigation for Kenyan drivers</p>
+            </div>
+            <div class="footer-section">
+                <h3>Quick Links</h3>
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="map.html">Map</a></li>
+                    <li><a href="route.html">Routes</a></li>
+                    <li><a href="alerts.html">Alerts</a></li>
+                    <li><a href="profile.html">Profile</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Contact Us</h3>
+                <p>Email: info@trafficnavkenya.com</p>
+                <p>Phone: +254 123 456 789</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            &copy; 2024 TrafficNav Kenya. All rights reserved.
+        </div>
+    </footer>
+
+    <script
+        src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places,geometry"></script>
+    <script>
+        let map;
+        let directionsService;
+        let directionsRenderer;
+
+        // Sample data for alerts and saved routes
+        let alerts = [
+            { id: 1, severity: 'high', location: 'Nairobi CBD', type: 'accident', description: 'Major accident on Moi Avenue', lat: -1.2864, lng: 36.8172 },
+            { id: 2, severity: 'medium', location: 'Westlands', type: 'construction', description: 'Road construction on Waiyaki Way', lat: -1.2641, lng: 36.8028 },
+            { id: 3, severity: 'low', location: 'Karen', type: 'heavy-traffic', description: 'Heavy traffic on Ngong Road', lat: -1.3189, lng: 36.7126 }
+        ];
+
+        let savedRoutes = [
+            { id: 1, name: 'Home to Work', start: 'Kileleshwa', end: 'Westlands' },
+            { id: 2, name: 'Office to Airport', start: 'Upperhill', end: 'JKIA' }
+        ];
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: -1.2921, lng: 36.8219 }, // Nairobi coordinates
+                zoom: 12
+            });
+
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer();
+            directionsRenderer.setMap(map);
+
+            displayAlerts();
+            displaySavedRoutes();
+        }
+
+        function displayAlerts() {
+            const alertList = document.getElementById('alert-list');
+            alertList.innerHTML = '';
+            alerts.forEach(alert => {
+                const alertElement = document.createElement('div');
+                alertElement.classList.add('alert', alert.severity);
+                alertElement.innerHTML = `
+                <h3>${alert.type.toUpperCase()} - ${alert.location}</h3>
+                <p>${alert.description}</p>
+                <span class="severity">${alert.severity.toUpperCase()}</span>
+                <button onclick="showOnMap(${alert.lat}, ${alert.lng})">Show on Map</button>
+            `;
+                alertList.appendChild(alertElement);
+
+                // Add marker to the map
+                new google.maps.Marker({
+                    position: { lat: alert.lat, lng: alert.lng },
+                    map: map,
+                    title: alert.description
+                });
+            });
+        }
+
+        function showOnMap(lat, lng) {
+            map.setCenter({ lat, lng });
+            map.setZoom(15);
+        }
+
+        function displaySavedRoutes() {
+            const savedRoutesList = document.getElementById('saved-routes-list');
+            savedRoutesList.innerHTML = '';
+            savedRoutes.forEach(route => {
+                const routeElement = document.createElement('div');
+                routeElement.classList.add('saved-route');
+                routeElement.innerHTML = `
+                <h3>${route.name}</h3>
+                <p>From: ${route.start}</p>
+                <p>To: ${route.end}</p>
+                <button onclick="startNavigation(${route.id})">Start Navigation</button>
+                <button onclick="editRoute(${route.id})">Edit</button>
+                <button onclick="deleteRoute(${route.id})">Delete</button>
+            `;
+                savedRoutesList.appendChild(routeElement);
+            });
+        }
+
+        function startNavigation(routeId) {
+            const route = savedRoutes.find(r => r.id === routeId);
+            if (route) {
+                const request = {
+                    origin: route.start,
+                    destination: route.end,
+                    travelMode: 'DRIVING'
+                };
+                directionsService.route(request, (result, status) => {
+                    if (status === 'OK') {
+                        directionsRenderer.setDirections(result);
+                        checkForAlerts(result.routes[0]);
+                    } else {
+                        alert('Directions request failed due to ' + status);
+                    }
+                });
+            }
+        }
+
+        function editRoute(routeId) {
+            const route = savedRoutes.find(r => r.id === routeId);
+            if (route) {
+                document.getElementById('start').value = route.start;
+                document.getElementById('end').value = route.end;
+                // Redirect to route planner page
+                window.location.href = 'route.html';
+            }
+        }
+
+        function deleteRoute(routeId) {
+            savedRoutes = savedRoutes.filter(r => r.id !== routeId);
+            displaySavedRoutes();
+        }
+
+        function checkForAlerts(route) {
+            alerts.forEach(alert => {
+                const alertLocation = new google.maps.LatLng(alert.lat, alert.lng);
+                let isOnRoute = false;
+
+                for (let i = 0; i < route.legs.length; i++) {
+                    if (google.maps.geometry.poly.isLocationOnEdge(alertLocation, new google.maps.Polyline({
+                        path: route.legs[i].steps.flatMap(step => step.path)
+                    }), 1e-3)) {
+                        isOnRoute = true;
+                        break;
+                    }
+                }
+
+                if (isOnRoute) {
+                    const confirmation = confirm(`There is a ${alert.type} (${alert.severity} severity) on your route at ${alert.location}. Would you like to find an alternative route?`);
+                    if (confirmation) {
+                        // Recalculate route avoiding this area
+                        const request = {
+                            origin: route.legs[0].start_location,
+                            destination: route.legs[route.legs.length - 1].end_location,
+                            travelMode: 'DRIVING',
+                            avoidWaypoints: [{ location: alertLocation, stopover: false }]
+                        };
+                        directionsService.route(request, (result, status) => {
+                            if (status === 'OK') {
+                                directionsRenderer.setDirections(result);
+                            } else {
+                                alert('Could not calculate alternative route');
+                            }
+                        });
+                    }
+                }
+            });
+        }
+
+        document.getElementById('alert-filter').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const severity = Array.from(document.querySelectorAll('input[name="severity"]:checked')).map(input => input.value);
+            const location = document.querySelector('input[name="location"]').value.toLowerCase();
+
+            const filteredAlerts = alerts.filter(alert =>
+                (severity.length === 0 || severity.includes(alert.severity)) &&
+                (location === '' || alert.location.toLowerCase().includes(location))
+            );
+
+            displayFilteredAlerts(filteredAlerts);
+        });
+
+        function displayFilteredAlerts(filteredAlerts) {
+            const alertList = document.getElementById('alert-list');
+            alertList.innerHTML = '';
+            filteredAlerts.forEach(alert => {
+                const alertElement = document.createElement('div');
+                alertElement.classList.add('alert', alert.severity);
+                alertElement.innerHTML = `
+                <h3>${alert.type.toUpperCase()} - ${alert.location}</h3>
+                <p>${alert.description}</p>
+                <span class="severity">${alert.severity.toUpperCase()}</span>
+                <button onclick="showOnMap(${alert.lat}, ${alert.lng})">Show on Map</button>
+            `;
+                alertList.appendChild(alertElement);
+            });
+        }
+
+        document.getElementById('custom-alert-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const location = document.querySelector('input[name="custom-location"]').value;
+            const radius = document.querySelector('input[name="radius"]').value;
+            const alertType = document.querySelector('select[name="alert-type"]').value;
+
+            // Geocode the location
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ address: location }, (results, status) => {
+                if (status === 'OK') {
+                    const lat = results[0].geometry.location.lat();
+                    const lng = results[0].geometry.location.lng();
+
+                    // Create new custom alert
+                    const newAlert = {
+                        id: alerts.length + 1,
+                        severity: 'medium', // Default severity
+                        location: location,
+                        type: alertType,
+                        description: `Custom ${alertType} alert within ${radius}km radius`,
+                        lat: lat,
+                        lng: lng
+                    };
+
+                    alerts.push(newAlert);
+                    displayAlerts();
+
+                    // Create a circle to represent the alert area
+                    new google.maps.Circle({
+                        strokeColor: '#FF0000',
+                        strokeOpacity: 0.8,
+                        strokeWeight: 2,
+                        fillColor: '#FF0000',
+                        fillOpacity: 0.35,
+                        map: map,
+                        center: { lat, lng },
+                        radius: radius * 1000 // Convert km to meters
+                    });
+
+                    alert('Custom alert created successfully');
+                } else {
+                    alert('Geocode was not successful for the following reason: ' + status);
+                }
+            });
+        });
+
+        // Initialize the page
+        google.maps.event.addDomListener(window, 'load', initMap);
+    </script>
+</body>
+
+</html>
